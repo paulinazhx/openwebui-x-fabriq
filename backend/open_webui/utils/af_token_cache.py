@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 # Agentic Fabriq credentials - EDIT HERE
 # ===========================================
 AF_APP_ID = "org-f4c7eab7-4439-494a-8ddd-06abb3974541_openwebui-paulina"
-AF_APP_SECRET = "FgmKwN3KZdAU7rKGBubWnhZrPaBRrCfU"
+AF_APP_SECRET = "5i3KcHUHlwmKB383hN7oOfjVaD6Dr9AX"
 # ===========================================
 
 async def exchange_okta_token_for_af_token(okta_access_token: str) -> Optional[str]:
