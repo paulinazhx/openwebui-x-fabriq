@@ -735,13 +735,15 @@ def load_oauth_providers():
                     % ("S256", OAUTH_CODE_CHALLENGE_METHOD.value)
                 )
 
+            # DO NOT set redirect_uri during registration for Keycloak
+            # Keycloak validates redirect_uri dynamically from the authorization request
+            # Setting it here can cause validation conflicts
             client = oauth.register(
                 name="oidc",
                 client_id=OAUTH_CLIENT_ID.value,
-                client_secret=OAUTH_CLIENT_SECRET.value,
+                client_secret=OAUTH_CLIENT_SECRET.value if OAUTH_CLIENT_SECRET.value else None,
                 server_metadata_url=OPENID_PROVIDER_URL.value,
                 client_kwargs=client_kwargs,
-                redirect_uri=OPENID_REDIRECT_URI.value,
             )
             return client
 

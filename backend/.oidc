@@ -1,56 +1,72 @@
 # --- OIDC Core Settings ---
+# Keycloak OIDC Configuration for OpenWebUI
 
-# Enable OAuth signup if you want users to be able to create accounts via Okta
-
+# Enable OAuth signup if you want users to be able to create accounts via Keycloak
 ENABLE_OAUTH_SIGNUP="true"
 
 # Allow SSO login to link with existing accounts that have the same email
 OAUTH_MERGE_ACCOUNTS_BY_EMAIL="true"
 
-# Your Okta application's Client ID
-OAUTH_CLIENT_ID="0oay7rks65yi7Ommx697"
 
-# Your Okta application's Client Secret
-OAUTH_CLIENT_SECRET="7PhaHQml53KjtSa-PhcqC6pMEMWMbNcFV4Yieve-zQyi0H_3TzbNu-xdOnkKl9Cm"
+AF_APP_ID="org-32a884f6-bc0c-4892-811c-97f1f4e1fd14_new-openwebui"
+AF_APP_SECRET="Jn5sChr2ZsvCZTQOOBLfR2ebGcGkUKKj"
 
-# Your Okta organization's OIDC discovery URL
+# Keycloak Client ID (use "agentic-fabric-client" or create a dedicated client)
+OAUTH_CLIENT_ID="org-32a884f6-bc0c-4892-811c-97f1f4e1fd14_new-openwebui"
 
-# Format: https://<your-okta-domain>/.well-known/openid-configuration
+# Keycloak Client Secret (only if client is confidential; leave empty for public+PKCE)
+# If using PKCE with a public client, leave this empty
+OAUTH_CLIENT_SECRET="Jn5sChr2ZsvCZTQOOBLfR2ebGcGkUKKj"
 
-# Or for a specific authorization server: https://<your-okta-domain>/oauth2/<auth-server-id>/.well-known/openid-configuration
-OPENID_PROVIDER_URL="https://trial-3446177.okta.com/oauth2/default/.well-known/openid-configuration"
+# Keycloak OIDC Discovery URL
+# Format: https://<keycloak-domain>/realms/<realm>/.well-known/openid-configuration
+# Note: Newer Keycloak versions (v17+) don't use /auth prefix
+OPENID_PROVIDER_URL="https://stagingauth.agenticfabriq.com/realms/agentic-fabric/.well-known/openid-configuration"
 
-# Name displayed on the login button (e.g., "Login with Okta")
-OAUTH_PROVIDER_NAME="Okta"
+# Name displayed on the login button
+OAUTH_PROVIDER_NAME="Keycloak"
 
+# Redirect URI - MUST match what's configured in Keycloak client
+# Replace <openwebui-host> with your actual OpenWebUI hostname
+# For local development: http://localhost:8080/oauth/oidc/login/callback
+# For production: https://<your-domain>/oauth/oidc/login/callback
+# Try 127.0.0.1 if localhost doesn't work (some Keycloak setups treat them differently)
 OPENID_REDIRECT_URI="http://localhost:8080/oauth/oidc/login/callback"
 
-# Scopes to request (default is usually sufficient)
+# Scopes to request
+OAUTH_SCOPES="openid profile email"
 
-# OAUTH_SCOPES="openid email profile groups" # Ensure 'groups' is included if not default
+# Enable PKCE (recommended for public clients, optional for confidential)
+# Set to "S256" to enable PKCE code challenge method
+OAUTH_CODE_CHALLENGE_METHOD="S256"
+
+# Token endpoint auth method (optional)
+# For public clients with PKCE, set to "none"
+# For confidential clients, omit to use default (client_secret_basic)
+OAUTH_TOKEN_ENDPOINT_AUTH_METHOD="client_secret_basic"
+
+# Default role for new OIDC users
+DEFAULT_USER_ROLE="admin"
+
+# Optional: Timeout for OAuth requests (in seconds)
+# OAUTH_TIMEOUT="30"
+
+# Optional: Post-logout redirect URL
+# WEBUI_AUTH_SIGNOUT_REDIRECT_URL="http://localhost:8000/auth"
 
 # --- OAuth Group Management (Optional) ---
-
-# Set to "true" only if you configured the Groups Claim in Okta (Step 2)
-
-# and want Open WebUI groups to be managed based on Okta groups upon login.
-
+# Set to "true" only if you configured the Groups Claim in Keycloak
+# and want Open WebUI groups to be managed based on Keycloak groups upon login.
 # This syncs existing groups. Users will be added/removed from Open WebUI groups
-
-# to match their Okta group claims.
+# to match their Keycloak group claims.
 
 # ENABLE_OAUTH_GROUP_MANAGEMENT="true"
 
 # Required only if ENABLE_OAUTH_GROUP_MANAGEMENT is true.
+# The claim name in the ID token containing group information (must match Keycloak config)
+# OAUTH_GROUPS_CLAIM="groups"
 
-# The claim name in the ID token containing group information (must match Okta config)
-
-# OAUTH_GROUP_CLAIM="groups"
-
-# Optional: Enable Just-in-Time (JIT) creation of groups if they exist in Okta claims but not in Open WebUI.
-
+# Optional: Enable Just-in-Time (JIT) creation of groups if they exist in Keycloak claims but not in Open WebUI.
 # Requires ENABLE_OAUTH_GROUP_MANAGEMENT="true".
-
 # If set to false (default), only existing groups will be synced.
-
 # ENABLE_OAUTH_GROUP_CREATION="false"

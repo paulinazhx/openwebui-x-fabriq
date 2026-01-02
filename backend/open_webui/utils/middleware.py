@@ -1370,51 +1370,32 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                                 headers["Authorization"] = f"Bearer {cached_token}"
                                 log.debug(f"Using cached AF token for user {user.id}")
                             else:
-                                # Get Okta token from OAuth session
-                                # Try both "okta" and "oidc" provider names
-                                okta_session = OAuthSessions.get_session_by_provider_and_user_id(
+                                # Get OIDC token (Keycloak/Okta) from OAuth session; try both provider names
+                                oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
                                     "okta", user.id
                                 )
-                                if not okta_session:
-                                    okta_session = OAuthSessions.get_session_by_provider_and_user_id(
+                                if not oauth_session:
+                                    oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
                                         "oidc", user.id
                                     )
-                                
-                                if okta_session and okta_session.token.get("access_token"):
-                                    # Use access_token for token exchange
-                                    okta_access_token = okta_session.token.get("access_token")
-                                    
-                                    # Log the Okta token for debugging
-                                    log.info(f"=== OKTA TOKEN DEBUG ===")
-                                    log.info(f"Using token type: access_token")
-                                    log.info(f"Full Token: {okta_access_token}")
-                                    log.info(f"Token Length: {len(okta_access_token)}")
-                                    log.info(f"Available keys in session: {list(okta_session.token.keys())}")
-                                    log.info(f"========================")
-                                    
-                                    # Exchange Okta token for AF token
-                                    af_token = await exchange_okta_token_for_af_token(okta_access_token)
-                                    
-                                    # Log the token details for debugging
-                                    log.info(f"=== AF TOKEN RESULT ===")
-                                    log.info(f"Type: {type(af_token)}, Value: {af_token}")
-                                    log.info(f"======================")
 
+                                if oauth_session and oauth_session.token.get("access_token"):
+                                    access_token = oauth_session.token.get("access_token")
                                     
+                                    # Exchange OIDC access token for AF token (with subject_issuer)
+                                    af_token = await exchange_okta_token_for_af_token(access_token)
+
                                     if af_token:
                                         # Cache the token for 1 hour
                                         af_token_cache.set(user.id, af_token)
                                         headers["Authorization"] = f"Bearer {af_token}"
-                                        log.info(f"Successfully exchanged Okta token for AF token for user {user.id}")
+                                        log.info(f"Exchanged OIDC token for AF token for user {user.id}")
                                     else:
-                                        log.error(f"Failed to exchange Okta token for AF token for user {user.id}")
+                                        log.error(f"Failed to exchange OIDC token for AF token for user {user.id}")
                                 else:
-                                    log.error(f"No Okta/OIDC session found for user {user.id}")
+                                    log.error(f"No OIDC/Okta session with access_token found for user {user.id}")
                         except Exception as e:
-                            log.error(f"Error getting Agentic Fabriq token: {e}")
-                            log.error(f"Exception type: {type(e).__name__}")
-                            import traceback
-                            log.error(f"Full traceback: {traceback.format_exc()}")
+                            log.error(f"Error getting Agentic Fabriq token: {e}", exc_info=True)
 
                     mcp_clients[server_id] = MCPClient()
                     await mcp_clients[server_id].connect(
