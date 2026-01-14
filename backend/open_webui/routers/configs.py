@@ -17,8 +17,9 @@ from open_webui.utils.tools import (
 )
 from open_webui.utils.mcp.client import MCPClient
 from open_webui.models.oauth_sessions import OAuthSessions
-from open_webui.utils.af_token_cache import af_token_cache, exchange_okta_token_for_af_token
-# exchange_okta_for_af_token is now imported via af_token_cache
+from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET
+# Import af_sdk MCPClient for agentic_fabriq auth (handles token exchange internally)
+from af_sdk import MCPClient as AFMCPClient
 
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -281,48 +282,55 @@ async def verify_tool_servers_config(
                         except Exception as e:
                             pass
                     elif form_data.auth_type == "agentic_fabriq":
+                        # Use af_sdk MCPClient which handles token exchange internally
                         try:
-                            # Check cache first
-                            cached_token = af_token_cache.get(user.id)
-                            if cached_token:
-                                token = cached_token
-                                log.debug(f"Using cached AF token for user {user.id}")
-                            else:
-                                # Get OIDC token (Keycloak/Okta) from OAuth session
-                                # Try both "okta" and "oidc" provider names
+                            # Get Keycloak token from OAuth session
+                            oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
+                                "okta", user.id
+                            )
+                            if not oauth_session:
                                 oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
-                                    "okta", user.id
+                                    "oidc", user.id
                                 )
-                                if not oauth_session:
-                                    oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
-                                        "oidc", user.id
-                                    )
-                                
-                                if not oauth_session or not oauth_session.token.get("access_token"):
-                                    raise HTTPException(
-                                        status_code=400,
-                                        detail="No OIDC session found. Please log in with SSO first.",
-                                    )
-                                
-                                access_token = oauth_session.token.get("access_token")
-                                
-                                # Exchange OIDC access token for AF token
-                                af_token = await exchange_okta_token_for_af_token(access_token)
-                                
-                                if not af_token:
-                                    raise HTTPException(
-                                        status_code=400,
-                                        detail="Failed to exchange OIDC token for Agentic Fabriq token",
-                                    )
-                                
-                                # Cache the token for 1 hour
-                                af_token_cache.set(user.id, af_token)
-                                token = af_token
-                                log.info(f"Successfully exchanged OIDC token for AF token for user {user.id}")
+                            
+                            if not oauth_session or not oauth_session.token.get("access_token"):
+                                raise HTTPException(
+                                    status_code=400,
+                                    detail="No OIDC session found. Please log in with SSO first.",
+                                )
+                            
+                            keycloak_token = oauth_session.token.get("access_token")
+                            
+                            # Create AFMCPClient with keycloak token - it handles token exchange internally
+                            af_client = AFMCPClient(
+                                method="keycloak",
+                                app_id=AF_APP_ID,
+                                app_secret=AF_APP_SECRET,
+                                keycloak_token=keycloak_token,
+                            )
+                            await af_client.connect()
+                            
+                            # Get tools from af_sdk client
+                            tools = await af_client.list_tools()
+                            specs = [
+                                {
+                                    "name": tool["name"],
+                                    "description": tool.get("description", ""),
+                                    "parameters": tool.get("input_schema", tool.get("inputSchema", {})),
+                                }
+                                for tool in tools
+                            ]
+                            
+                            await af_client.disconnect()
+                            log.info(f"Successfully connected to AF MCP server for user {user.id}")
+                            return {
+                                "status": True,
+                                "specs": specs,
+                            }
                         except HTTPException:
                             raise
                         except Exception as e:
-                            log.error(f"Error getting Agentic Fabriq token: {e}")
+                            log.error(f"Error connecting to Agentic Fabriq MCP: {e}")
                             raise HTTPException(
                                 status_code=400,
                                 detail=f"Failed to authenticate with Agentic Fabriq: {str(e)}",

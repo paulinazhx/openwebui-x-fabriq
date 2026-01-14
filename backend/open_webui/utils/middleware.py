@@ -28,8 +28,9 @@ from open_webui.models.oauth_sessions import OAuthSessions
 from open_webui.models.chats import Chats
 from open_webui.models.folders import Folders
 from open_webui.models.users import Users
-from open_webui.utils.af_token_cache import af_token_cache, exchange_okta_token_for_af_token
-# exchange_okta_for_af_token is now imported via af_token_cache
+from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET
+# Import af_sdk MCPClient for agentic_fabriq auth (handles token exchange internally)
+from af_sdk import MCPClient as AFMCPClient
 from open_webui.socket.main import (
     get_event_call,
     get_event_emitter,
@@ -1363,60 +1364,76 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                             log.error(f"Error getting OAuth token: {e}")
                             oauth_token = None
                     elif auth_type == "agentic_fabriq":
+                        # Use af_sdk MCPClient which handles token exchange internally
                         try:
-                            # Check cache first
-                            cached_token = af_token_cache.get(user.id)
-                            if cached_token:
-                                headers["Authorization"] = f"Bearer {cached_token}"
-                                log.debug(f"Using cached AF token for user {user.id}")
-                            else:
-                                # Get OIDC token (Keycloak/Okta) from OAuth session; try both provider names
+                            # Get Keycloak token from OAuth session
+                            oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
+                                "okta", user.id
+                            )
+                            if not oauth_session:
                                 oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
-                                    "okta", user.id
+                                    "oidc", user.id
                                 )
-                                if not oauth_session:
-                                    oauth_session = OAuthSessions.get_session_by_provider_and_user_id(
-                                        "oidc", user.id
-                                    )
 
-                                if oauth_session and oauth_session.token.get("access_token"):
-                                    access_token = oauth_session.token.get("access_token")
-                                    
-                                    # Exchange OIDC access token for AF token (with subject_issuer)
-                                    af_token = await exchange_okta_token_for_af_token(access_token)
-
-                                    if af_token:
-                                        # Cache the token for 1 hour
-                                        af_token_cache.set(user.id, af_token)
-                                        headers["Authorization"] = f"Bearer {af_token}"
-                                        log.info(f"Exchanged OIDC token for AF token for user {user.id}")
-                                    else:
-                                        log.error(f"Failed to exchange OIDC token for AF token for user {user.id}")
-                                else:
-                                    log.error(f"No OIDC/Okta session with access_token found for user {user.id}")
+                            if oauth_session and oauth_session.token.get("access_token"):
+                                keycloak_token = oauth_session.token.get("access_token")
+                                
+                                # Create AFMCPClient with keycloak token - it handles token exchange internally
+                                af_mcp_client = AFMCPClient(
+                                    method="keycloak",
+                                    app_id=AF_APP_ID,
+                                    app_secret=AF_APP_SECRET,
+                                    keycloak_token=keycloak_token,
+                                )
+                                await af_mcp_client.connect()
+                                
+                                mcp_clients[server_id] = af_mcp_client
+                                
+                                # Get tools from af_sdk client
+                                tools = await af_mcp_client.list_tools()
+                                tool_specs = [
+                                    {
+                                        "name": tool["name"],
+                                        "description": tool.get("description", ""),
+                                        "parameters": tool.get("input_schema", tool.get("inputSchema", {})),
+                                    }
+                                    for tool in tools
+                                ]
+                                log.info(f"Connected to AF MCP server {server_id} for user {user.id}")
+                            else:
+                                log.error(f"No OIDC/Okta session with access_token found for user {user.id}")
+                                continue
                         except Exception as e:
-                            log.error(f"Error getting Agentic Fabriq token: {e}", exc_info=True)
+                            log.error(f"Error connecting to Agentic Fabriq MCP: {e}", exc_info=True)
+                            raise e
 
-                    mcp_clients[server_id] = MCPClient()
-                    await mcp_clients[server_id].connect(
-                        url=mcp_server_connection.get("url", ""),
-                        headers=headers if headers else None,
-                    )
-
-                    tool_specs = await mcp_clients[server_id].list_tool_specs()
+                    if auth_type != "agentic_fabriq":
+                        # For non-agentic_fabriq auth types, use the local MCPClient
+                        mcp_clients[server_id] = MCPClient()
+                        await mcp_clients[server_id].connect(
+                            url=mcp_server_connection.get("url", ""),
+                            headers=headers if headers else None,
+                        )
+                        tool_specs = await mcp_clients[server_id].list_tool_specs()
                     for tool_spec in tool_specs:
 
-                        def make_tool_function(client, function_name):
+                        def make_tool_function(client, function_name, is_af_client):
                             async def tool_function(**kwargs):
-                                return await client.call_tool(
-                                    function_name,
-                                    function_args=kwargs,
-                                )
+                                if is_af_client:
+                                    # af_sdk MCPClient uses call_tool(name, arguments)
+                                    return await client.call_tool(function_name, kwargs)
+                                else:
+                                    # Local MCPClient uses call_tool(function_name, function_args=kwargs)
+                                    return await client.call_tool(
+                                        function_name,
+                                        function_args=kwargs,
+                                    )
 
                             return tool_function
 
+                        is_af_client = auth_type == "agentic_fabriq"
                         tool_function = make_tool_function(
-                            mcp_clients[server_id], tool_spec["name"]
+                            mcp_clients[server_id], tool_spec["name"], is_af_client
                         )
 
                         mcp_tools_dict[f"{server_id}_{tool_spec['name']}"] = {
