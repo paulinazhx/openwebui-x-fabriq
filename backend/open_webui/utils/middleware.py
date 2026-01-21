@@ -28,7 +28,7 @@ from open_webui.models.oauth_sessions import OAuthSessions
 from open_webui.models.chats import Chats
 from open_webui.models.folders import Folders
 from open_webui.models.users import Users
-from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET
+from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET, AF_GATEWAY_URL
 # Import af_sdk MCPClient for agentic_fabriq auth (handles token exchange internally)
 from af_sdk import MCPClient as AFMCPClient
 from open_webui.socket.main import (
@@ -1384,6 +1384,8 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                                     app_id=AF_APP_ID,
                                     app_secret=AF_APP_SECRET,
                                     keycloak_token=keycloak_token,
+                                    mcp_url=f"{AF_GATEWAY_URL}/mcp",
+                                    gateway_url=AF_GATEWAY_URL,
                                 )
                                 await af_mcp_client.connect()
                                 

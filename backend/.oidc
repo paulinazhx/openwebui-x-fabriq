@@ -8,20 +8,20 @@ ENABLE_OAUTH_SIGNUP="true"
 OAUTH_MERGE_ACCOUNTS_BY_EMAIL="true"
 
 
-AF_APP_ID="org-32a884f6-bc0c-4892-811c-97f1f4e1fd14_new-openwebui"
-AF_APP_SECRET="Jn5sChr2ZsvCZTQOOBLfR2ebGcGkUKKj"
+AF_APP_ID="org-e3cb1279-44a8-41d9-afe9-1e9fd5157242_openwebui"
+AF_APP_SECRET="fg1xCBbcyY9FvWWeR6kPt4NOb1sYObN2"
 
 # Keycloak Client ID (use "agentic-fabric-client" or create a dedicated client)
-OAUTH_CLIENT_ID="org-32a884f6-bc0c-4892-811c-97f1f4e1fd14_new-openwebui"
+OAUTH_CLIENT_ID="org-e3cb1279-44a8-41d9-afe9-1e9fd5157242_openwebui"
 
 # Keycloak Client Secret (only if client is confidential; leave empty for public+PKCE)
 # If using PKCE with a public client, leave this empty
-OAUTH_CLIENT_SECRET="Jn5sChr2ZsvCZTQOOBLfR2ebGcGkUKKj"
+OAUTH_CLIENT_SECRET="fg1xCBbcyY9FvWWeR6kPt4NOb1sYObN2"
 
 # Keycloak OIDC Discovery URL
 # Format: https://<keycloak-domain>/realms/<realm>/.well-known/openid-configuration
 # Note: Newer Keycloak versions (v17+) don't use /auth prefix
-OPENID_PROVIDER_URL="https://stagingauth.agenticfabriq.com/realms/agentic-fabric/.well-known/openid-configuration"
+OPENID_PROVIDER_URL="https://auth.agenticfabriq.com/realms/test-user-s-workspace/.well-known/openid-configuration"
 
 # Name displayed on the login button
 OAUTH_PROVIDER_NAME="Keycloak"

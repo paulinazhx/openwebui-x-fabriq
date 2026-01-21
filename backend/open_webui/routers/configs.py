@@ -17,7 +17,7 @@ from open_webui.utils.tools import (
 )
 from open_webui.utils.mcp.client import MCPClient
 from open_webui.models.oauth_sessions import OAuthSessions
-from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET
+from open_webui.utils.af_token_cache import AF_APP_ID, AF_APP_SECRET, AF_GATEWAY_URL
 # Import af_sdk MCPClient for agentic_fabriq auth (handles token exchange internally)
 from af_sdk import MCPClient as AFMCPClient
 
@@ -307,6 +307,7 @@ async def verify_tool_servers_config(
                                 app_id=AF_APP_ID,
                                 app_secret=AF_APP_SECRET,
                                 keycloak_token=keycloak_token,
+                                mcp_url=AF_GATEWAY_URL,
                             )
                             await af_client.connect()
                             

@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 # ===========================================
 AF_APP_ID = os.getenv("AF_APP_ID", "org-b415a4a4-5612-4369-84f0-f9c512c5374a_openwebui")
 AF_APP_SECRET = os.getenv("AF_APP_SECRET", "UfG7X7eWhKxMRFV3AgF8qpRtDZIq7WlG")
-AF_GATEWAY_URL = os.getenv("AF_GATEWAY_URL", "https://staging.agenticfabriq.com")
+AF_GATEWAY_URL = os.getenv("AF_GATEWAY_URL", "https://dashboard.agenticfabriq.com")
 # ===========================================
 
 # Export configuration for use in middleware
